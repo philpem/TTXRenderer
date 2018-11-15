@@ -4,15 +4,12 @@ import pygame
 import os
 from enum import Enum, auto
 
-class ViewtextState(Enum):
-    WAIT_PAGE_HEADER = auto()
-
-
-
 class ViewtextRenderer:
     # Viewtext screen area in characters
     VTCOLS  = 40
     VTLINES = 25
+
+    FEAT_ALPHA_BLACK = False
 
     COLOURMAP = (
             (0,     0,      0),     # Black
@@ -33,30 +30,38 @@ class ViewtextRenderer:
         # Get the size of a screen full of Viewtext data
         # assumes monospaced font
         (linew, lineh) = self._font.size("A"*self.VTCOLS)
+        lineh = lineh - 1
         self._surfw = linew
         self._surfh = lineh * self.VTLINES
         self._lineh = lineh
         self._charw = linew / self.VTCOLS
 
-    def _charmap(self, cha):
+    def _charmap(self, cha, doubleheight):
         """
         Private: map character set
         """
         m = {
-                0x23: '\u00A3',
-                0x24: '\u00A4',
+                0x23: 0xA3,
+                0x24: 0xA4,
                 # 0x40 is @ already
-                0x5c: '\u00BD',
-                0x5f: '\u0023',
-                0x7b: '\u00BC',
-                0x7d: '\u00BE',
-                0x7e: '\u00F7',
-                0x7f: '\u00B6'
+                0x5c: 0xBD,
+                0x5f: 0x23,
+                0x7b: 0xBC,
+                0x7d: 0xBE,
+                0x7e: 0xF7,
+                0x7f: 0xB6
             }
-        if cha in m:
-            return m[cha]
+
+        if doubleheight is not None:
+            ofs = doubleheight
         else:
-            return chr(cha)
+            ofs = 0
+
+        if cha in m:
+            return chr(ofs + m[cha])
+        else:
+            return chr(ofs + cha)
+
 
     def render(self, data, flags=0):
         """
@@ -67,11 +72,8 @@ class ViewtextRenderer:
 
         flags: Page control bits
         """
-        #assert(len(data) == self.VTLINES)
-        #assert(len(data[0]) == self.VTCOLS)
 
-        #state = ViewtextState.WAIT_PAGE_HEADER
-        doublehigh = False
+        dhofs = 0
 
         # create two blank output surfaces -- Flash A and Flash B
         surface1 = pygame.Surface((self._surfw, self._surfh))
@@ -87,31 +89,57 @@ class ViewtextRenderer:
             fg = self.COLOURMAP[7]  # reset fg colour to white
             bg = self.COLOURMAP[0]  # reset bg colour to black
             flash = False
+            doubleheight = False
 
             for col in row:
                 # single character
                 if col < 0x20:
-                    # control character -- TODO
-                    s = s + ' '
+                    # It's a control character
 
                     # Deal with Set-After codes, which take effect from the
                     # following character.
                     if col < 0x07 or \
                             (col >= 0x10 and col <= 0x17) or \
                             col in (0x08, 0x0A, 0x0B, 0x0D, 0x0E, 0x0F, 0x1B, 0x1F):
-                        # Flush the text buffer
-                        ts = self._font.render(s, self._antialias, fg, bg)
-                        surface1.blit(ts, (cx, cy))
-                        if not flash:
-                            surface2.blit(ts, (cx, cy))
-                        # Update X position and clear output buffer
-                        cx += (self._charw * len(s))
-                        s = ''
+                        # this is a set-after code, preload a blank
+                        s = s + ' '
+                        setAfter = True
+                    else:
+                        setAfter = False
+
+                    # Flush the text buffer
+                    ts = self._font.render(s, self._antialias, fg, bg)
+                    surface1.blit(ts, (cx, cy))
+                    if not flash:
+                        surface2.blit(ts, (cx, cy))
+                    # Update X position and clear output buffer
+                    cx += (self._charw * len(s))
+                    s = ''
 
                     # Control code handling
 
                     if col < 0x07:      # 0x00 to 0x07: Alpha Colour (Set-After)
-                        fg = self.COLOURMAP[col]
+                        if (col == 0x00 and self.FEAT_ALPHA_BLACK) or (col != 0x00):
+                            fg = self.COLOURMAP[col]
+
+                    elif col == 0x08:   # 0x08: Flash (Set-After)
+                        flash = True
+
+                    elif col == 0x09:   # 0x09: Flash (Set-At)
+                        flash = False
+
+                    elif col == 0x0C:   # 0x0C: Normal height
+                        doubleheight = False
+
+                    elif col == 0x0D:   # 0x0D: Double Height (Set-After)
+                        # If the doubleheight character code offset is set to
+                        # "top half", set it to "bottom half". Otherwise set
+                        # it to "top half".
+                        if dhofs == 0xE000:
+                            dhofs = 0xE100
+                        else:
+                            dhofs = 0xE000
+                        doubleheight = True
 
                     elif col == 0x1C:   # 0x1C: Black Background (Set-At)
                         bg = self.COLOURMAP[0]
@@ -119,9 +147,18 @@ class ViewtextRenderer:
                     elif col == 0x1D:   # 0x1D: New Background (Set-At)
                         bg = fg
 
+
+                    # If this was a Set-At code, load a space with the new
+                    # attributes into the buffer
+                    if not setAfter:
+                        s = s + ' '
+
                 else:
                     # text character
-                    s = s + self._charmap(col)
+                    if doubleheight:
+                        s = s + self._charmap(col, dhofs)
+                    else:
+                        s = s + self._charmap(col, 0)
 
             if len(s) > 0:
                 # There are characters left in the buffer -- render them
@@ -166,8 +203,8 @@ main,flash = r.render(d)
 
 # rescale if oversize
 r = main.get_rect().fit(lcd.get_rect())
-main = pygame.transform.smoothscale(main, (r.width, r.height))
-flash = pygame.transform.smoothscale(flash, (r.width, r.height))
+#main = pygame.transform.smoothscale(main, (r.width, r.height))
+#flash = pygame.transform.smoothscale(flash, (r.width, r.height))
 
 # blit to LCD
 
