@@ -36,14 +36,65 @@ class ViewtextRenderer:
         self._lineh = lineh
         self._charw = linew / self.VTCOLS
 
-    def _charmap(self, cha, doubleheight):
+    def _charmap(self, cha, dhrow, mosaic, contiguous):
         """
         Private: map character set
+
+        dhrow: 0 = normal height, 1=doubleheight row 1, 2=doubleheight row 2
+        mosaic: True for mosaic mode
+        contiguous: True for contiguous mosaic, False for separated
         """
+
+        if mosaic and contiguous:
+            # mosaic, contiguous
+            if dhrow != 0:
+                if dhrow == 1:
+                    ofs = 0
+                elif dhrow == 2:
+                    ofs = 0x40
+
+                if cha >= 0x20 and cha <= 0x3F:
+                    return chr(0xE240 + ofs + (cha - 0x20))
+                elif cha >= 0x60 and cha <= 0x7F:
+                    return chr(0xE260 + ofs + (cha - 0x60))
+            else:
+                if cha >= 0x20 and cha <= 0x3F:
+                    return chr(0xE200 + (cha - 0x20))
+                elif cha >= 0x60 and cha <= 0x7F:
+                    return chr(0xE220 + (cha - 0x60))
+            # 0x40 <= cha <= 0x5F: Fall through to G0 character set
+
+        elif mosaic and not contiguous:
+            # mosaic, separated
+            if dhrow != 0:
+                if dhrow == 1:
+                    ofs = 0
+                elif dhrow == 2:
+                    ofs = 0x40
+
+                if cha >= 0x20 and cha <= 0x3F:
+                    return chr(0xE300 + ofs + (cha - 0x20))
+                elif cha >= 0x60 and cha <= 0x7F:
+                    return chr(0xE320 + ofs + (cha - 0x60))
+            else:
+                if cha >= 0x20 and cha <= 0x3F:
+                    return chr(0xE2C0 + (cha - 0x20))
+                elif cha >= 0x60 and cha <= 0x7F:
+                    return chr(0xE2E0 + (cha - 0x60))
+            # 0x40 <= cha <= 0x5F: Fall through to G0 character set
+
+        # character mode
+        if dhrow == 0:      # no double height
+            ofs = 0
+        elif dhrow == 1:    # top half, double height
+            ofs = 0xE000
+        elif dhrow == 2:    # bottom half, double height
+            ofs = 0xE100
+
+        # character mapping table
         m = {
                 0x23: 0xA3,
                 0x24: 0xA4,
-                # 0x40 is @ already
                 0x5c: 0xBD,
                 0x5f: 0x23,
                 0x7b: 0xBC,
@@ -51,11 +102,6 @@ class ViewtextRenderer:
                 0x7e: 0xF7,
                 0x7f: 0xB6
             }
-
-        if doubleheight is not None:
-            ofs = doubleheight
-        else:
-            ofs = 0
 
         if cha in m:
             return chr(ofs + m[cha])
@@ -73,7 +119,7 @@ class ViewtextRenderer:
         flags: Page control bits
         """
 
-        dhofs = 0
+        dhrow = 0
 
         # create two blank output surfaces -- Flash A and Flash B
         surface1 = pygame.Surface((self._surfw, self._surfh))
@@ -84,12 +130,25 @@ class ViewtextRenderer:
 
         # Start rendering the data
         for row in data:
-            holdgfx = ' '       # Hold Graphics character
             s = ''              # string buffer
-            fg = self.COLOURMAP[7]  # reset fg colour to white
-            bg = self.COLOURMAP[0]  # reset bg colour to black
-            flash = False
-            doubleheight = False
+
+            # Set start of line condition
+            # White text, black background
+            fg              = self.COLOURMAP[7]
+            bg              = self.COLOURMAP[0]
+            # Flash off
+            flash           = False
+            # Double Height off
+            doubleheight    = False
+            # Box off -- TODO add page flag
+            box             = False
+            # Conceal off -- TODO add input flag
+            conceal         = False
+            # Mosaic characters off, contiguous mode, Hold Mosaic off
+            mosaic          = False
+            sepMosaic       = False
+            holdMosaic      = False
+            holdMosaicCh    = ord(' ')
 
             for col in row:
                 # single character
@@ -102,7 +161,15 @@ class ViewtextRenderer:
                             (col >= 0x10 and col <= 0x17) or \
                             col in (0x08, 0x0A, 0x0B, 0x0D, 0x0E, 0x0F, 0x1B, 0x1F):
                         # this is a set-after code, preload a blank
-                        s = s + ' '
+                        if holdMosaic:
+                            if conceal: # TODO: 'and not Flags.REVEAL'
+                                s = s + ' '
+                            elif doubleheight:
+                                s = s + self._charmap(holdMosaicCh, dhrow, mosaic, not sepMosaic)
+                            else:
+                                s = s + self._charmap(holdMosaicCh, 0, mosaic, not sepMosaic)
+                        else:
+                            s = s + ' '
                         setAfter = True
                     else:
                         setAfter = False
@@ -118,9 +185,16 @@ class ViewtextRenderer:
 
                     # Control code handling
 
-                    if col < 0x07:      # 0x00 to 0x07: Alpha Colour (Set-After)
+                    if (col < 0x07) or (col >= 0x10 and col <= 0x17):
+                                        # 0x00 to 0x07: Alpha Colour (Set-After)
+                                        # 0x10 to 0x17: Mosaic Colour (Set-After)
+                        # TODO: Alpha Black only takes effect on some decoders (see ETSI ETS 300 706)
+                        #       What does Teletext Level 1 spec say we should do here?
                         if (col == 0x00 and self.FEAT_ALPHA_BLACK) or (col != 0x00):
-                            fg = self.COLOURMAP[col]
+                            fg = self.COLOURMAP[col & 0x07]
+                        holdMosaicCh = ord(' ')
+                        mosaic = (col >= 0x10)
+                        conceal = False
 
                     elif col == 0x08:   # 0x08: Flash (Set-After)
                         flash = True
@@ -128,18 +202,44 @@ class ViewtextRenderer:
                     elif col == 0x09:   # 0x09: Flash (Set-At)
                         flash = False
 
-                    elif col == 0x0C:   # 0x0C: Normal height
+                    elif col == 0x0A:   # 0x0A: End Box (Set-After)
+                        box = False     # TODO
+
+                    elif col == 0x0B:   # 0x0B: Start Box (Set-After)
+                        box = True      # TODO
+
+                    elif col == 0x0C:   # 0x0C: Normal size (Set-At)
+                        if doubleheight:
+                            holdMosaicCh = ord(' ')
                         doubleheight = False
 
                     elif col == 0x0D:   # 0x0D: Double Height (Set-After)
+                        if not doubleheight:
+                            holdMosaicCh = ord(' ')
                         # If the doubleheight character code offset is set to
                         # "top half", set it to "bottom half". Otherwise set
                         # it to "top half".
-                        if dhofs == 0xE000:
-                            dhofs = 0xE100
+                        if dhrow == 1:
+                            dhrow = 2
                         else:
-                            dhofs = 0xE000
+                            dhrow = 1
                         doubleheight = True
+
+                    # 0x0E: Level 2.5 and 3.5: Double Width (Set-After) -- TODO
+                    # 0x0F: Level 2.5 and 3.5: Double Size  (Set-After) -- TODO
+
+                    # 0x10-0x17 are handled above (Mosaic Colour)
+
+                    elif col == 0x18:   # 0x18: Conceal (Set-At)
+                        conceal = True
+
+                    elif col == 0x19:   # 0x19: Contiguous Mosaic characters (Set-At)
+                        sepMosaic = False
+
+                    elif col == 0x1A:   # 0x1A: Separated Mosaic characters (Set-At)
+                        sepMosaic = True
+
+                    # TODO: 0x1B / Escape
 
                     elif col == 0x1C:   # 0x1C: Black Background (Set-At)
                         bg = self.COLOURMAP[0]
@@ -147,18 +247,36 @@ class ViewtextRenderer:
                     elif col == 0x1D:   # 0x1D: New Background (Set-At)
                         bg = fg
 
+                    elif col == 0x1E:   # 0x1E: Hold Mosaic on (Set-At)
+                        holdMosaic = True
+
+                    elif col == 0x1F:   # 0x1F: Hold Mosaic off (Set-At)
+                        holdMosaic = False
 
                     # If this was a Set-At code, load a space with the new
                     # attributes into the buffer
                     if not setAfter:
-                        s = s + ' '
+                        if holdMosaic:
+                            if conceal: # TODO: 'and not Flags.REVEAL'
+                                s = s + ' '
+                            elif doubleheight:
+                                s = s + self._charmap(holdMosaicCh, dhrow, mosaic, not sepMosaic)
+                            else:
+                                s = s + self._charmap(holdMosaicCh, 0, mosaic, not sepMosaic)
+                        else:
+                            s = s + ' '
 
                 else:
+                    if holdMosaic and (col & 0x40) and mosaic:
+                        holdMosaicCh = col
+
                     # text character
-                    if doubleheight:
-                        s = s + self._charmap(col, dhofs)
+                    if conceal: # TODO: 'and not Flags.REVEAL'
+                        s = s + ' '
+                    elif doubleheight:
+                        s = s + self._charmap(col, dhrow, mosaic, not sepMosaic)
                     else:
-                        s = s + self._charmap(col, 0)
+                        s = s + self._charmap(col, 0, mosaic, not sepMosaic)
 
             if len(s) > 0:
                 # There are characters left in the buffer -- render them
