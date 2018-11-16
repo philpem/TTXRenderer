@@ -109,7 +109,7 @@ class ViewtextRenderer:
             return chr(ofs + cha)
 
 
-    def render(self, data, flags=0):
+    def render(self, data, flags=0, reveal=True):
         """
         Render Viewtext
 
@@ -179,7 +179,7 @@ class ViewtextRenderer:
                             col in (0x08, 0x0A, 0x0B, 0x0D, 0x0E, 0x0F, 0x1B, 0x1F):
                         # this is a set-after code, preload a blank
                         if holdMosaic:
-                            if conceal: # TODO: 'and not Flags.REVEAL'
+                            if conceal and not reveal:
                                 s = s + ' '
                             elif doubleheight:
                                 s = s + self._charmap(holdMosaicCh, dhrow, True, holdMosaicSep)
@@ -236,11 +236,12 @@ class ViewtextRenderer:
                         doubleheight = False
 
                     elif col == 0x0D:   # 0x0D: Double Height (Set-After)
+                        # The "Held-Mosaic" character is reset to "SPACE" at the start of each
+                        # row, on a change of alphanumeric/mosaics mode or on a change of size
                         if not doubleheight:
                             holdMosaicCh = ord(' ')
-                        # If the doubleheight character code offset is set to
-                        # "top half", set it to "bottom half". Otherwise set
-                        # it to "top half".
+
+                        # If doubleheight isn't enabled, enable it
                         if dhrow == 0:
                             dhrow = 1
                         doubleheight = True
@@ -278,7 +279,7 @@ class ViewtextRenderer:
                     # attributes into the buffer
                     if not setAfter:
                         if holdMosaic:
-                            if conceal: # TODO: 'and not Flags.REVEAL'
+                            if conceal and not reveal:
                                 s = s + ' '
                             elif doubleheight:
                                 s = s + self._charmap(holdMosaicCh, dhrow, True, holdMosaicSep)
@@ -296,7 +297,7 @@ class ViewtextRenderer:
                         holdMosaicSep = sepMosaic
 
                     # text character
-                    if conceal: # TODO: 'and not Flags.REVEAL'
+                    if conceal and not reveal:
                         s = s + ' '
                     elif doubleheight:
                         s = s + self._charmap(col, dhrow, mosaic, sepMosaic)
