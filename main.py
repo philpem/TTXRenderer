@@ -9,7 +9,7 @@ class ViewtextRenderer:
     VTCOLS  = 40
     VTLINES = 25
 
-    FEAT_ALPHA_BLACK = False
+    FEAT_FG_BLACK = False
 
     COLOURMAP = (
             (0,     0,      0),     # Black
@@ -36,7 +36,7 @@ class ViewtextRenderer:
         self._lineh = lineh
         self._charw = linew / self.VTCOLS
 
-    def _charmap(self, cha, dhrow, mosaic, contiguous):
+    def _charmap(self, cha, dhrow, mosaic, separated):
         """
         Private: map character set
 
@@ -45,7 +45,7 @@ class ViewtextRenderer:
         contiguous: True for contiguous mosaic, False for separated
         """
 
-        if mosaic and contiguous:
+        if mosaic and not separated:
             # mosaic, contiguous
             if dhrow != 0:
                 if dhrow == 1:
@@ -64,7 +64,7 @@ class ViewtextRenderer:
                     return chr(0xE220 + (cha - 0x60))
             # 0x40 <= cha <= 0x5F: Fall through to G0 character set
 
-        elif mosaic and not contiguous:
+        elif mosaic and separated:
             # mosaic, separated
             if dhrow != 0:
                 if dhrow == 1:
@@ -128,6 +128,8 @@ class ViewtextRenderer:
         cx = 0
         cy = 0
 
+        dhPrevRow = False
+
         # Start rendering the data
         for row in data:
             s = ''              # string buffer
@@ -149,15 +151,31 @@ class ViewtextRenderer:
             sepMosaic       = False
             holdMosaic      = False
             holdMosaicCh    = ord(' ')
+            holdMosaicSep   = False
+
+            # If we had double-height on the last row, this row is the second
+            # double-height row.
+            # If this is the second double-height row, reset double-height.
+            if dhrow == 1:
+                dhrow = 2
+            elif dhrow == 2:
+                dhrow = 0
 
             for col in row:
+                if dhrow == 2:
+                    # ETS 300 706 s12.3 "0/D: Double Height"
+                    # When double height (or double size) characters are used on a given row, the row
+                    # below normal height characters on that row is displayed with the same local
+                    # background colour and no foreground data.
+                    continue
+
                 # single character
                 if col < 0x20:
                     # It's a control character
 
                     # Deal with Set-After codes, which take effect from the
                     # following character.
-                    if col < 0x07 or \
+                    if col <= 0x07 or \
                             (col >= 0x10 and col <= 0x17) or \
                             col in (0x08, 0x0A, 0x0B, 0x0D, 0x0E, 0x0F, 0x1B, 0x1F):
                         # this is a set-after code, preload a blank
@@ -165,9 +183,9 @@ class ViewtextRenderer:
                             if conceal: # TODO: 'and not Flags.REVEAL'
                                 s = s + ' '
                             elif doubleheight:
-                                s = s + self._charmap(holdMosaicCh, dhrow, mosaic, not sepMosaic)
+                                s = s + self._charmap(holdMosaicCh, dhrow, True, holdMosaicSep)
                             else:
-                                s = s + self._charmap(holdMosaicCh, 0, mosaic, not sepMosaic)
+                                s = s + self._charmap(holdMosaicCh, 0, True, holdMosaicSep)
                         else:
                             s = s + ' '
                         setAfter = True
@@ -185,15 +203,15 @@ class ViewtextRenderer:
 
                     # Control code handling
 
-                    if (col < 0x07) or (col >= 0x10 and col <= 0x17):
+                    if (col <= 0x07) or (col >= 0x10 and col <= 0x17):
                                         # 0x00 to 0x07: Alpha Colour (Set-After)
                                         # 0x10 to 0x17: Mosaic Colour (Set-After)
                         # TODO: Alpha Black only takes effect on some decoders (see ETSI ETS 300 706)
                         #       What does Teletext Level 1 spec say we should do here?
-                        if (col == 0x00 and self.FEAT_ALPHA_BLACK) or (col != 0x00):
-                            fg = self.COLOURMAP[col & 0x07]
-                        holdMosaicCh = ord(' ')
                         mosaic = (col >= 0x10)
+                        c = col & 0x07
+                        if (c == 0 and self.FEAT_FG_BLACK) or (c != 0x00):
+                            fg = self.COLOURMAP[c]
                         conceal = False
 
                     elif col == 0x08:   # 0x08: Flash (Set-After)
@@ -219,11 +237,10 @@ class ViewtextRenderer:
                         # If the doubleheight character code offset is set to
                         # "top half", set it to "bottom half". Otherwise set
                         # it to "top half".
-                        if dhrow == 1:
-                            dhrow = 2
-                        else:
+                        if dhrow == 0:
                             dhrow = 1
                         doubleheight = True
+                        dhPrevRow = True
 
                     # 0x0E: Level 2.5 and 3.5: Double Width (Set-After) -- TODO
                     # 0x0F: Level 2.5 and 3.5: Double Size  (Set-After) -- TODO
@@ -260,23 +277,24 @@ class ViewtextRenderer:
                             if conceal: # TODO: 'and not Flags.REVEAL'
                                 s = s + ' '
                             elif doubleheight:
-                                s = s + self._charmap(holdMosaicCh, dhrow, mosaic, not sepMosaic)
+                                s = s + self._charmap(holdMosaicCh, dhrow, True, holdMosaicSep)
                             else:
-                                s = s + self._charmap(holdMosaicCh, 0, mosaic, not sepMosaic)
+                                s = s + self._charmap(holdMosaicCh, 0, True, holdMosaicSep)
                         else:
                             s = s + ' '
 
                 else:
-                    if holdMosaic and (col & 0x40) and mosaic:
+                    if holdMosaic and (col & 0x20) and mosaic:
                         holdMosaicCh = col
+                        holdMosaicSep = sepMosaic
 
                     # text character
                     if conceal: # TODO: 'and not Flags.REVEAL'
                         s = s + ' '
                     elif doubleheight:
-                        s = s + self._charmap(col, dhrow, mosaic, not sepMosaic)
+                        s = s + self._charmap(col, dhrow, mosaic, sepMosaic)
                     else:
-                        s = s + self._charmap(col, 0, mosaic, not sepMosaic)
+                        s = s + self._charmap(col, 0, mosaic, sepMosaic)
 
             if len(s) > 0:
                 # There are characters left in the buffer -- render them
