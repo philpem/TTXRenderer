@@ -158,18 +158,17 @@ class ViewtextRenderer:
             # If this is the second double-height row, reset double-height.
             if dhrow == 1:
                 dhrow = 2
+                row = prevRow       # ETS 300 706: Double height row 2 uses data from the previous row
             elif dhrow == 2:
                 dhrow = 0
 
-            for col in row:
-                if dhrow == 2:
-                    # ETS 300 706 s12.3 "0/D: Double Height"
-                    # When double height (or double size) characters are used on a given row, the row
-                    # below normal height characters on that row is displayed with the same local
-                    # background colour and no foreground data.
-                    continue
+            prevRow = row
 
-                # single character
+            for col in row:
+                # Mask off the MSB (sometimes set in image files)
+                col &= 0x7F
+
+                # process control characters
                 if col < 0x20:
                     # It's a control character
 
@@ -283,7 +282,10 @@ class ViewtextRenderer:
                         else:
                             s = s + ' '
 
-                else:
+                else:   # not col < 0x20
+                    if (not doubleheight) and dhrow == 2:
+                        col = 32
+
                     if holdMosaic and (col & 0x20) and mosaic:
                         holdMosaicCh = col
                         holdMosaicSep = sepMosaic
