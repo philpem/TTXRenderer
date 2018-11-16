@@ -207,10 +207,15 @@ class ViewtextRenderer:
                                         # 0x10 to 0x17: Mosaic Colour (Set-After)
                         # TODO: Alpha Black only takes effect on some decoders (see ETSI ETS 300 706)
                         #       What does Teletext Level 1 spec say we should do here?
+                        if (col != 0 and col != 0x10) or self.FEAT_FG_BLACK:
+                            fg = self.COLOURMAP[col & 0x07]
+
+                        if (mosaic != (col >= 0x10)):
+                            # The "Held-Mosaic" character is reset to "SPACE" at the start of each
+                            # row, on a change of alphanumeric/mosaics mode or on a change of size
+                            holdMosaicCh = ord(' ')
+
                         mosaic = (col >= 0x10)
-                        c = col & 0x07
-                        if (c == 0 and self.FEAT_FG_BLACK) or (c != 0x00):
-                            fg = self.COLOURMAP[c]
                         conceal = False
 
                     elif col == 0x08:   # 0x08: Flash (Set-After)
