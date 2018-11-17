@@ -2,13 +2,14 @@
 
 import pygame
 import os
-from enum import Enum, auto
 
 class ViewtextRenderer:
     # Viewtext screen area in characters
     VTCOLS  = 40
     VTLINES = 25
 
+    # Feature code -- enable black foreground.
+    # Not compatible with Teletext level 1.0 or 1.5
     FEAT_FG_BLACK = False
 
     COLOURMAP = (
@@ -109,14 +110,17 @@ class ViewtextRenderer:
             return chr(ofs + cha)
 
 
-    def render(self, data, flags=0, reveal=True):
+    def render(self, data, reveal=True):
         """
         Render Viewtext
 
-        data: 40x25 2D array containing Viewtext character data.
-              This is essentially the Viewtext/Teletext RAM buffer.
+        data:    40x25 2D array containing Viewtext character data.
+                 This is essentially the Viewtext/Teletext RAM buffer.
+        reveal:  True if the REVEAL button has been pressed.
+                 Makes CONCEALed screen elements visible.
 
-        flags: Page control bits
+
+        TODO: Page control bits
         """
 
         dhrow = 0
@@ -329,7 +333,8 @@ def DeTTX(s):
 
 #os.putenv('SDL_FBDEV', '/dev/fb1')
 #os.putenv('SDL_VIDEODRIVER', 'fbcon') # Force PyGame to PiTFT
-pygame.init()
+pygame.display.init()
+pygame.font.init()
 pygame.mouse.set_visible(False)
 
 lcd = pygame.display.set_mode((896, 512))
