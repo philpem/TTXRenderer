@@ -3,11 +3,17 @@
 import pygame
 
 from ViewtextRenderer import *
-from testpages import engtest
+from testpages import engtest, LoadEP1
 
 
 # Set to True to force rescaling of the image regardless of screen size
+# TODO - allow scaling to be set to NONE, FIT or STRETCH
 FORCE_SCALE=False
+
+# Font size
+FONT_SIZE = 20
+# Antialiasing -- needs to be on or MODE7 will screw up
+FONT_AA   = True
 
 # Display timing -- flash on in seconds
 T_FLASH_ON  = 1.0
@@ -27,11 +33,10 @@ size = (pygame.display.Info().current_w, pygame.display.Info().current_h)
 print("Framebuffer size: %d x %d" % (size[0], size[1]))
 lcd = pygame.display.set_mode(size, pygame.FULLSCREEN)
 
-print("modeset done, init display")
+print("modeset done")
 
 # TODO background image
-#lcd.fill((128,128,0))
-#pygame.display.update()
+lcd.fill((63,63,63))
 
 # initialise fonts
 print("fontInit")
@@ -39,8 +44,12 @@ pygame.font.init()
 
 # initialise Viewdata/Teletext renderer
 print("viewtextInit")
-r = ViewtextRenderer()
-main,flash = r.render(engtest)
+r = ViewtextRenderer(font="fonts/MODE7GX0.TTF", fontsize=FONT_SIZE, antialias=FONT_AA)
+
+#page = engtest
+page = LoadEP1("snep.ep1")
+#page = LoadEP1("1024.ep1")
+main,flash = r.render(page)
 
 # rescale the Teletext image if it's too large for the screen
 r = main.get_rect()
