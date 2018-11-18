@@ -10,14 +10,13 @@ from testpages import engtest
 #os.putenv('SDL_VIDEODRIVER', 'fbcon') # Force PyGame to PiTFT
 print("displayInit")
 pygame.display.init()
-#pygame.mouse.set_visible(False)
-
 
 print("Modelist:")
 for mode in pygame.display.list_modes():
     print("   {0} x {1}".format(mode[0], mode[1]))
 
 
+pygame.mouse.set_visible(False)
 size = (pygame.display.Info().current_w, pygame.display.Info().current_h)
 print("Framebuffer size: %d x %d" % (size[0], size[1]))
 #size = (768,576)
@@ -49,11 +48,16 @@ lcd.blit(main, (0,0))
 pygame.display.update()
 
 import time
-while True:
+quit = False
+while not quit:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            sys.exit()
+            quit = True
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.key.K_ESCAPE:
+                quit = True
 
+pygame.quit()
 
 """
     lcd.blit(main, (0,0))
