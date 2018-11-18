@@ -21,7 +21,7 @@ class ViewtextRenderer:
             (255,   255,    255)    # White
             )
 
-    def __init__(self, font="MODE7GX3.TTF", fontsize=20, antialias=False):
+    def __init__(self, font="fonts/MODE7GX3.TTF", fontsize=20, antialias=False):
         # Load the font
         self._font = pygame.font.Font(font, fontsize)
         self._antialias = antialias
