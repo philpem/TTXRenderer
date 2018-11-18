@@ -54,7 +54,7 @@ while not quit:
         if event.type == pygame.QUIT:
             quit = True
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.key.K_ESCAPE:
+            if event.key == pygame.K_ESCAPE:
                 quit = True
 
 pygame.quit()
