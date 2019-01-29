@@ -39,9 +39,15 @@ class ViewtextRenderer:
         """
         Private: map character set
 
-        dhrow: 0 = normal height, 1=doubleheight row 1, 2=doubleheight row 2
-        mosaic: True for mosaic mode
-        contiguous: True for contiguous mosaic, False for separated
+        dhrow:
+            0 = normal height
+            1 = double-height row 1
+            2 = double-height row 2
+        mosaic:
+            True for mosaic graphics mode
+        separated:
+            False for contiguous mosaic
+            True for separated mosaic
         """
 
         if mosaic and not separated:
@@ -117,19 +123,28 @@ class ViewtextRenderer:
         reveal:  True if the REVEAL button has been pressed.
                  Makes CONCEALed screen elements visible.
 
+        Returns a tuple:
+            (solid, blink)
+            solid:  pygame Surface with flashing elements drawn
+            blink:  pygame Surface with flashing elements blanked
+
+        To draw the Viewtext page correctly, the two frames should be drawn
+        on screen alternately with a delay of around 1.7 seconds between
+        page 'switches'. This will make flashing text flash.
 
         TODO: Page control bits
         """
-
-        dhrow = 0
 
         # create two blank output surfaces -- Flash A and Flash B
         surface1 = pygame.Surface((self._surfw, self._surfh))
         surface2 = pygame.Surface((self._surfw, self._surfh))
 
+        # Set start of page conditions
+        #   Reset X/Y position to (0,0)
+        #   Disable double-height
         cx = 0
         cy = 0
-
+        dhrow = 0
         dhPrevRow = False
 
         # Start rendering the data
@@ -146,7 +161,7 @@ class ViewtextRenderer:
             doubleheight    = False
             # Box off -- TODO add page flag
             box             = False
-            # Conceal off -- TODO add input flag
+            # Conceal off
             conceal         = False
             # Mosaic characters off, contiguous mode, Hold Mosaic off
             mosaic          = False
@@ -164,6 +179,7 @@ class ViewtextRenderer:
             elif dhrow == 2:
                 dhrow = 0
 
+            # Save the previous row (see above re. ETS 300 706 handling of double-height)
             prevRow = row
 
             for col in row:
