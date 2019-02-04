@@ -20,6 +20,9 @@ T_FLASH_ON  = 1.0
 # Display timing -- flash off in seconds
 T_FLASH_OFF = 0.3
 
+# Fullscreen
+FULLSCREEN = False
+
 
 # initialise the display
 print("displayInit")
@@ -29,9 +32,13 @@ pygame.display.init()
 pygame.mouse.set_visible(False)
 
 # open the screen
-size = (pygame.display.Info().current_w, pygame.display.Info().current_h)
-print("Framebuffer size: %d x %d" % (size[0], size[1]))
-lcd = pygame.display.set_mode(size, pygame.FULLSCREEN)
+if FULLSCREEN:
+    size = (pygame.display.Info().current_w, pygame.display.Info().current_h)
+    print("Framebuffer size: %d x %d" % (size[0], size[1]))
+    lcd = pygame.display.set_mode(size, pygame.FULLSCREEN)
+else:
+    size = (720, 576)
+    lcd = pygame.display.set_mode(size, 0)
 
 print("modeset done")
 
@@ -44,10 +51,11 @@ pygame.font.init()
 
 # initialise Viewdata/Teletext renderer
 print("viewtextInit")
-r = ViewtextRenderer(font="fonts/MODE7GX0.TTF", fontsize=FONT_SIZE, antialias=FONT_AA)
+#r = ViewtextRenderer(font="fonts/MODE7GX0.TTF", fontsize=FONT_SIZE, antialias=FONT_AA)
+r = ViewtextRenderer(font="bedstead", fontsize=FONT_SIZE, antialias=FONT_AA)
 
-#page = engtest
-page = LoadEP1("snep.ep1")
+page = engtest
+#page = LoadEP1("snep.ep1")
 #page = LoadEP1("1024.ep1")
 main,flash = r.render(page)
 

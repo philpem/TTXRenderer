@@ -1,4 +1,6 @@
 import pygame
+import pygame.freetype
+import pygame.ftfont
 import os
 
 class ViewtextRenderer:
@@ -21,9 +23,18 @@ class ViewtextRenderer:
             (255,   255,    255)    # White
             )
 
-    def __init__(self, font="fonts/MODE7GX0.TTF", fontsize=20, antialias=True):
+    def __init__(self, font="bedstead", fontsize=20, antialias=True):
+        pygame.freetype.init()
+
         # Load the font
-        self._font = pygame.font.Font(font, fontsize)
+        if font == "bedstead":
+            self._font = pygame.ftfont.Font("fonts/bedstead.otf", fontsize)
+            self._font2 = pygame.ftfont.Font("fonts/bedstead-ultracondensed.otf", fontsize*2)
+            self.mapper = self._charmap_bedstead
+        else:
+            self._font = pygame.ftfont.Font(font, fontsize)
+            self._font2 = None
+            self.mapper = self._charmap_mode7
         self._antialias = antialias
 
         # Get the size of a screen full of Viewtext data
@@ -35,9 +46,65 @@ class ViewtextRenderer:
         self._lineh = lineh
         self._charw = linew / self.VTCOLS
 
-    def _charmap(self, cha, dhrow, mosaic, separated):
+    def _charmap_bedstead(self, cha, dhrow, mosaic, separated):
         """
-        Private: map character set
+        Private: map character set -- for Bedstead font
+
+        dhrow:
+            0 = normal height
+            1 = double-height row 1
+            2 = double-height row 2
+        mosaic:
+            True for mosaic graphics mode
+        separated:
+            False for contiguous mosaic
+            True for separated mosaic
+        """
+
+        if mosaic and not separated:
+            # mosaic, contiguous
+            if cha >= 0x20 and cha <= 0x3F:
+                return chr(0xEE00 + (cha - 0x20))
+            elif cha >= 0x60 and cha <= 0x7F:
+                return chr(0xEE40 + (cha - 0x60))
+            # 0x40 <= cha <= 0x5F: Fall through to G0 character set
+
+        elif mosaic and separated:
+            # mosaic, separated
+            if cha >= 0x20 and cha <= 0x3F:
+                return chr(0xEE20 + (cha - 0x20))
+            elif cha >= 0x60 and cha <= 0x7F:
+                return chr(0xEE60 + (cha - 0x60))
+        # 0x40 <= cha <= 0x5F: Fall through to G0 character set
+
+        # character mapping table
+        m = {
+                0x23: 0xA3,     # 2/3: ASCII # => £
+                0x24: 0x24,     # 2/4: ASCII $ => $
+                0x40: 0x40,     # 4/0: ASCII @ => @
+                0x5b: 0x2190,   # 5/B: ASCII [ => left arrow
+                0x5c: 0xBD,     # 5/C: ASCII \ => 1/2 fraction
+                0x5d: 0x2192,   # 5/D: ASCII ] => right arrow
+                0x5e: 0x2191,   # 5/E: ASCII ^ => up arrow
+                0x5f: 0x23,     # 5/F: ASCII _ => #
+                0x60: 0x2014,   # 6/0: ASCII ` => emdash
+                0x7b: 0xBC,     # 7/B: ASCII { => 1/4 fraction
+                0x7c: 0x2016,   # 7/C: ASCII | => ||
+                0x7d: 0xBE,     # 7/D: ASCII } => 3/4 fraction
+                0x7e: 0xF7,     # 7/E: ASCII ~ => divide
+                0x7f: 0x25a0    # 7/F: ASCII DEL => square block
+            }
+
+        if cha in m:
+            return chr(m[cha])
+        else:
+            return chr(cha)
+
+
+
+    def _charmap_mode7(self, cha, dhrow, mosaic, separated):
+        """
+        Private: map character set -- for MODE7 font
 
         dhrow:
             0 = normal height
@@ -145,7 +212,6 @@ class ViewtextRenderer:
         cx = 0
         cy = 0
         dhrow = 0
-        dhPrevRow = False
 
         # Start rendering the data
         for row in data:
@@ -200,9 +266,9 @@ class ViewtextRenderer:
                             if conceal and not reveal:
                                 s = s + ' '
                             elif doubleheight:
-                                s = s + self._charmap(holdMosaicCh, dhrow, True, holdMosaicSep)
+                                s = s + self.mapper(holdMosaicCh, dhrow, True, holdMosaicSep)
                             else:
-                                s = s + self._charmap(holdMosaicCh, 0, True, holdMosaicSep)
+                                s = s + self.mapper(holdMosaicCh, 0, True, holdMosaicSep)
                         else:
                             s = s + ' '
                         setAfter = True
@@ -210,10 +276,15 @@ class ViewtextRenderer:
                         setAfter = False
 
                     # Flush the text buffer
-                    ts = self._font.render(s, self._antialias, fg, bg)
-                    surface1.blit(ts, (cx, cy))
-                    if not flash:
-                        surface2.blit(ts, (cx, cy))
+                    if doubleheight and self._font2 is not None:
+                        ts = self._font2.render(s, self._antialias, fg, bg)
+                    else:
+                        ts = self._font.render(s, self._antialias, fg, bg)
+
+                    if (self._font2 is None) or dhrow != 2:
+                        surface1.blit(ts, (cx, cy))
+                        if not flash:
+                            surface2.blit(ts, (cx, cy))
                     # Update X position and clear output buffer
                     cx += (self._charw * len(s))
                     s = ''
@@ -263,7 +334,6 @@ class ViewtextRenderer:
                         if dhrow == 0:
                             dhrow = 1
                         doubleheight = True
-                        dhPrevRow = True
 
                     # 0x0E: Level 2.5 and 3.5: Double Width (Set-After) -- TODO
                     # 0x0F: Level 2.5 and 3.5: Double Size  (Set-After) -- TODO
@@ -300,9 +370,9 @@ class ViewtextRenderer:
                             if conceal and not reveal:
                                 s = s + ' '
                             elif doubleheight:
-                                s = s + self._charmap(holdMosaicCh, dhrow, True, holdMosaicSep)
+                                s = s + self.mapper(holdMosaicCh, dhrow, True, holdMosaicSep)
                             else:
-                                s = s + self._charmap(holdMosaicCh, 0, True, holdMosaicSep)
+                                s = s + self.mapper(holdMosaicCh, 0, True, holdMosaicSep)
                         else:
                             s = s + ' '
 
@@ -318,16 +388,18 @@ class ViewtextRenderer:
                     if conceal and not reveal:
                         s = s + ' '
                     elif doubleheight:
-                        s = s + self._charmap(col, dhrow, mosaic, sepMosaic)
+                        s = s + self.mapper(col, dhrow, mosaic, sepMosaic)
                     else:
-                        s = s + self._charmap(col, 0, mosaic, sepMosaic)
+                        s = s + self.mapper(col, 0, mosaic, sepMosaic)
 
             if len(s) > 0:
                 # There are characters left in the buffer -- render them
                 ts = self._font.render(s, self._antialias, fg, bg)
-                surface1.blit(ts, (cx, cy))
-                if not flash:
-                    surface2.blit(ts, (cx, cy))
+
+                if (self._font2 is None) or dhrow != 2:
+                    surface1.blit(ts, (cx, cy))
+                    if not flash:
+                        surface2.blit(ts, (cx, cy))
 
             # Reset X/Y position to the start of the following line
             cy += self._lineh
