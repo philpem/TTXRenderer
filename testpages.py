@@ -13,6 +13,9 @@ def DeTTX(s):
 def LoadEP1(filename):
     """
     Load an EP1 file into an array
+
+    Note that EP1 files do not include the reserved 25th line, which edit.tf
+    allows the user to edit.
     """
     with open(filename, "rb") as f:
         header = f.read(6)
@@ -26,6 +29,30 @@ def LoadEP1(filename):
         # Finally there are two null bytes we can safely ignore
 
     data_lines = [data[i:i+40] for i in range(0, len(data), 40)]
+    return data_lines
+
+def LoadRaw(filename):
+    """
+    Load raw files from edit.tf (Raw 0x00-0x7f)
+    """
+
+    with open(filename, "rb") as f:
+        # Now 24 lines of 40 characters follow (the header is omitted)
+        data = bytearray(f.read())
+
+    # Identify whether this file has LF or CRLF line endings, or none at all
+    if len(data) == (24*40) or len(data) == (25*40):
+        # raw data, no CRLF
+        data_lines = [data[i:i+40] for i in range(0, len(data), 40)]
+    elif len(data) == (24*41) or len(data) == (25*41):
+        # raw data with LF line endings
+        data_lines = [data[i:i+40] for i in range(0, len(data), 41)]
+    elif len(data) == (24*42) or len(data) == (25*42):
+        # raw data with CRLF line endings
+        data_lines = [data[i:i+40] for i in range(0, len(data), 42)]
+    else:
+        raise IOError("Invalid Teletext-Raw file")
+
     return data_lines
 
 # Ceefax Engineering Test Page
