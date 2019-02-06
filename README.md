@@ -7,7 +7,9 @@ Satellites can be pre-synchronised in advance, or receive data (graphical 'asset
 
 This is effectively a Python-based ground-up reimplementation of the idea behind Infobeamer, but with tweaks to allow greater bandwidth efficiency when slow Uplink-to-Satellite links are in use (e.g. 8-20kbaud short-range ISM-band radio).
 
-**This repository contains the code for the Satellites.**
+**This repository contains the code for the Satellite.**
+
+Further documentation is contained in the **docs** directory.
 
 
 Installation
@@ -21,15 +23,6 @@ TODO: Write this when Satellite has been completely developed
   - Sync once to download the Carousel
   - Set up some kind of init script to make Satellite run on boot
   - Reboot
-
-
-TODO
-----
-
-  - Viewtext renderer: add support for the Bedstead font
-    * This will require support for font switching (using the Condensed variant at twice the pixel size for double-height)
-    * This will also require a change to the font mapping
-
 
 
 Credits
