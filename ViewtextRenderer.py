@@ -380,7 +380,7 @@ class ViewtextRenderer:
                     if (not doubleheight) and dhrow == 2:
                         col = 32
 
-                    if holdMosaic and (col & 0x20) and mosaic:
+                    if (col & 0x20) and mosaic:
                         holdMosaicCh = col
                         holdMosaicSep = sepMosaic
 
