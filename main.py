@@ -3,7 +3,7 @@
 import pygame
 
 from ViewtextRenderer import *
-from testpages import engtest, LoadEP1
+from testpages import CeefaxEngtest, ETS300706Test, LoadEP1
 
 
 # Set to True to force rescaling of the image regardless of screen size
@@ -27,6 +27,7 @@ FULLSCREEN = False
 # initialise the display
 print("displayInit")
 pygame.display.init()
+pygame.display.set_caption('Viewtext renderer')
 
 # hide the mouse cursor
 pygame.mouse.set_visible(False)
@@ -54,7 +55,8 @@ print("viewtextInit")
 #r = ViewtextRenderer(font="fonts/MODE7GX0.TTF", fontsize=FONT_SIZE, antialias=FONT_AA)
 r = ViewtextRenderer(font="bedstead", fontsize=FONT_SIZE, antialias=FONT_AA)
 
-page = engtest
+page = CeefaxEngtest()
+#page = ETS300706Test()
 #page = LoadEP1("snep.ep1")
 #page = LoadEP1("1024.ep1")
 main,flash = r.render(page)
