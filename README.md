@@ -1,28 +1,18 @@
-Pardus remote client (Satellite)
+Teletext renderer
 ================================
 
-Pardus is a digital signage and display platform for the Raspberry Pi. It allows a fleet of displays (called *Satellites*) to display content which is centrally managed from a central server (the *Uplink*). Satellites may be assigned *selector codes* to allow them to be addressed individually or as a group.
-
-Satellites can be pre-synchronised in advance, or receive data (graphical 'assets', text templates and text content) from the Uplink. This allows displays to be updated rapidly, with a minimum of bandwidth consumed. Display changes can be scheduled well in advance, or sent for immediate display.
-
-This is effectively a Python-based ground-up reimplementation of the idea behind Infobeamer, but with tweaks to allow greater bandwidth efficiency when slow Uplink-to-Satellite links are in use (e.g. 8-20kbaud short-range ISM-band radio).
-
-**This repository contains the code for the Satellite.**
-
-Further documentation is contained in the **docs** directory.
-
+This is a little Teletext renderer I threw together in my spare time.
 
 Installation
 ------------
 
-TODO: Write this when Satellite has been completely developed
-
   - Install the fonts in `~/.fonts` (symlinking may also work)
-  - Copy all your assets (images, templates, etc.) into the `assets` directory
-  - Configure Satellite's sync method and timing
-  - Sync once to download the Carousel
-  - Set up some kind of init script to make Satellite run on boot
-  - Reboot
+  - Run the scripts
+
+Licence
+-------
+
+GNU GPL v3
 
 
 Credits
