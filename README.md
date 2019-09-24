@@ -1,12 +1,13 @@
 Teletext renderer
-================================
+=================
 
-This is a little Teletext renderer I threw together in my spare time.
+This is a little Teletext Level 1.5 (ETSI ETS 300 706) renderer I threw together in my spare time.
 
 Installation
 ------------
 
   - Install the fonts in `~/.fonts` (symlinking may also work)
+  - Install Pygame
   - Run the scripts
 
 Licence
