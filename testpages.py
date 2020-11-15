@@ -34,6 +34,7 @@ def LoadEP1(filename):
 def LoadRaw(filename):
     """
     Load raw files from edit.tf (Raw 0x00-0x7f)
+    ZXNet calls this "Binary dump of Level 1 Page Data"
     """
 
     with open(filename, "rb") as f:
