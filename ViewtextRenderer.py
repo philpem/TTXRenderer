@@ -204,16 +204,15 @@ class ViewtextRenderer:
 
         def flushTextBuf():
             # Flush the text buffer
-            # This saves us repeating ourselves below
+            # This saves us repeating ourselves in the enclosing function
             if doubleheight and self._font2 is not None:
                 ts = self._font2.render(s, self._antialias, fg, bg)
             else:
                 ts = self._font.render(s, self._antialias, fg, bg)
 
-            if (self._font2 is None) or dhrow != 2:
-                surface1.blit(ts, (cx, cy))
-                if not flash:
-                    surface2.blit(ts, (cx, cy))
+            surface1.blit(ts, (cx, cy))
+            if not flash:
+                surface2.blit(ts, (cx, cy))
 
         # create two blank output surfaces -- Flash A and Flash B
         surface1 = pygame.Surface((self._surfw, self._surfh))
@@ -340,6 +339,11 @@ class ViewtextRenderer:
                         if dhrow == 0:
                             dhrow = 1
                         doubleheight = True
+
+                        # If we're using the Bedstead font and this is line 2, we need to stop rendering at the first
+                        # instance of the Double Height code.
+                        if self._font2 is not None and dhrow == 2:
+                            break
 
                     # 0x0E: Level 2.5 and 3.5: Double Width (Set-After) -- TODO
                     # 0x0F: Level 2.5 and 3.5: Double Size  (Set-After) -- TODO
