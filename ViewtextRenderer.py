@@ -202,6 +202,19 @@ class ViewtextRenderer:
         TODO: Page control bits
         """
 
+        def flushTextBuf():
+            # Flush the text buffer
+            # This saves us repeating ourselves below
+            if doubleheight and self._font2 is not None:
+                ts = self._font2.render(s, self._antialias, fg, bg)
+            else:
+                ts = self._font.render(s, self._antialias, fg, bg)
+
+            if (self._font2 is None) or dhrow != 2:
+                surface1.blit(ts, (cx, cy))
+                if not flash:
+                    surface2.blit(ts, (cx, cy))
+
         # create two blank output surfaces -- Flash A and Flash B
         surface1 = pygame.Surface((self._surfw, self._surfh))
         surface2 = pygame.Surface((self._surfw, self._surfh))
@@ -276,15 +289,8 @@ class ViewtextRenderer:
                         setAfter = False
 
                     # Flush the text buffer
-                    if doubleheight and self._font2 is not None:
-                        ts = self._font2.render(s, self._antialias, fg, bg)
-                    else:
-                        ts = self._font.render(s, self._antialias, fg, bg)
+                    flushTextBuf()
 
-                    if (self._font2 is None) or dhrow != 2:
-                        surface1.blit(ts, (cx, cy))
-                        if not flash:
-                            surface2.blit(ts, (cx, cy))
                     # Update X position and clear output buffer
                     cx += (self._charw * len(s))
                     s = ''
@@ -394,12 +400,8 @@ class ViewtextRenderer:
 
             if len(s) > 0:
                 # There are characters left in the buffer -- render them
-                ts = self._font.render(s, self._antialias, fg, bg)
+                flushTextBuf()
 
-                if (self._font2 is None) or dhrow != 2:
-                    surface1.blit(ts, (cx, cy))
-                    if not flash:
-                        surface2.blit(ts, (cx, cy))
 
             # Reset X/Y position to the start of the following line
             cy += self._lineh
